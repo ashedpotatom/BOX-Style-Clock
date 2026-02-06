@@ -17,9 +17,10 @@ interface BoxClockProps {
     isDarkMode: boolean;
     spinTrigger: number;
     fontMode: 'oi' | 'montserrat';
+    isMobile: boolean;
 }
 
-const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode }) => {
+const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, isMobile }) => {
     const time = useTime();
     const groupRef = useRef<Group>(null);
 
@@ -157,8 +158,9 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode }
         : "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Ew-.ttf";
 
     // Montserrat (Light 300) is thinner, but the user wants 10% reduction from the previous 4.5 baseline
-    // 4.5 * 0.9 = 4.05 for Oi. For Montserrat we use a slightly larger fontSize to compensate for thin lines if needed.
-    const fontSize = isOi ? 4.05 : 5.18; // 5.76 * 0.9
+    // Mobile reduction: additional 20% (multiplier 0.8)
+    const mobileScale = isMobile ? 0.8 : 1.0;
+    const fontSize = (isOi ? 4.05 : 5.18) * mobileScale;
 
     // Multipliers calibrated for "ultra-tight" look
     const boxWidth = isOi

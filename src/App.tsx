@@ -1,4 +1,4 @@
-import { useState, useCallback, Suspense } from 'react';
+import { useState, useCallback, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import BoxClock from './components/BoxClock';
@@ -8,6 +8,15 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [fontMode, setFontMode] = useState<'oi' | 'montserrat'>('oi');
   const [spinTrigger, setSpinTrigger] = useState(0);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleSpin = useCallback(() => {
     setSpinTrigger(prev => prev + 1);
@@ -56,6 +65,7 @@ function App() {
         onClick={handleSpin}
         className="spin-button"
         style={{
+          bottom: isMobile ? '60px' : '40px',
           backgroundColor: isDarkMode ? '#ffffff' : '#000000',
           color: isDarkMode ? '#000000' : '#ffffff',
         }}
@@ -70,7 +80,7 @@ function App() {
         <directionalLight position={[10, 10, 10]} intensity={1} />
 
         <Suspense fallback={null}>
-          <BoxClock isDarkMode={isDarkMode} spinTrigger={spinTrigger} fontMode={fontMode} />
+          <BoxClock isDarkMode={isDarkMode} spinTrigger={spinTrigger} fontMode={fontMode} isMobile={isMobile} />
         </Suspense>
 
         <OrbitControls enableZoom={false} />
