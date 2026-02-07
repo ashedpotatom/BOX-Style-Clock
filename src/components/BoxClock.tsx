@@ -18,11 +18,28 @@ interface BoxClockProps {
     spinTrigger: number;
     fontMode: 'oi' | 'montserrat';
     isMobile: boolean;
+    soundUrl?: string;
 }
 
-const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, isMobile }) => {
+const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, isMobile, soundUrl }) => {
     const time = useTime();
     const groupRef = useRef<Group>(null);
+
+    const formatTime = (date: Date) => {
+        // Use Ratio symbol (U+2236) instead of standard colon for better vertical alignment
+        return date.toLocaleTimeString('en-US', { hour12: false }).replace(/:/g, '∶');
+    };
+    const timeString = formatTime(time);
+
+    // Sound playback every second, except at 00 seconds
+    useEffect(() => {
+        const seconds = time.getSeconds();
+        if (soundUrl && seconds !== 0) {
+            const audio = new Audio(soundUrl);
+            audio.volume = 0.4;
+            audio.play().catch(e => console.log("Audio playback failed:", e));
+        }
+    }, [timeString, soundUrl]);
 
     const initialRotation = {
         x: -Math.PI / 8,
@@ -36,12 +53,6 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     const [animStartTime, setAnimStartTime] = useState(0);
     const [animDuration, setAnimDuration] = useState(800);
     const [useExpoEasing, setUseExpoEasing] = useState(false);
-
-    const formatTime = (date: Date) => {
-        // Use Ratio symbol (U+2236) instead of standard colon for better vertical alignment
-        return date.toLocaleTimeString('en-US', { hour12: false }).replace(/:/g, '∶');
-    };
-    const timeString = formatTime(time);
 
     // Helper function for Align (Reset to Front)
     const triggerAlign = () => {
