@@ -16,12 +16,13 @@ function easeOutExpo(x: number): number {
 interface BoxClockProps {
     isDarkMode: boolean;
     spinTrigger: number;
-    fontMode: 'oi' | 'montserrat';
+    fontMode: 'gloock' | 'montserrat' | 'custom';
     isMobile: boolean;
     soundUrl?: string;
+    soundVolume?: number;
 }
 
-const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, isMobile, soundUrl }) => {
+const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, isMobile, soundUrl, soundVolume = 0.4 }) => {
     const time = useTime();
     const groupRef = useRef<Group>(null);
 
@@ -36,7 +37,7 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
         const seconds = time.getSeconds();
         if (soundUrl && seconds !== 0) {
             const audio = new Audio(soundUrl);
-            audio.volume = 0.4;
+            audio.volume = soundVolume;
             audio.play().catch(e => console.log("Audio playback failed:", e));
         }
     }, [timeString, soundUrl]);
@@ -125,12 +126,13 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
                 return val;
             };
 
-            const maxDeviationFromBase = Math.PI / 2;
+            const maxYDeviation = 0.6; // 약 34도 제한 (옆면 노출 방지)
+            const maxXDeviation = Math.PI / 2;
 
             setTargets(prev => ({
-                x: clamp(prev.x + randomDelta(), baseRotation.x, maxDeviationFromBase),
-                y: clamp(prev.y + randomDelta(), baseRotation.y, maxDeviationFromBase),
-                z: clamp(prev.z + (randomDelta() * 0.3), baseRotation.z, Math.PI / 6)
+                x: clamp(prev.x + randomDelta(), baseRotation.x, maxXDeviation),
+                y: clamp(prev.y + randomDelta(), baseRotation.y, maxYDeviation),
+                z: clamp(prev.z + (randomDelta() * 0.3), baseRotation.z, Math.PI / 8)
             }));
 
             setUseExpoEasing(false); // Use normal cubic for seconds
@@ -163,24 +165,31 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     const secondaryColor = isDarkMode ? "#000000" : "#ffffff";
 
     // Typography and Dimensions - Dynamic based on fontMode
-    const isOi = fontMode === 'oi';
-    const fontUrl = isOi
-        ? "https://cdn.jsdelivr.net/gh/google/fonts@master/ofl/oi/Oi-Regular.ttf"
-        : "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Ew-.ttf";
+    const isGloock = fontMode === 'gloock';
+    const isCustom = fontMode === 'custom';
+    const fontUrl = isCustom
+        ? "/assets/fonts/Sprat-RegularBold.otf"
+        : isGloock
+            ? "https://cdn.jsdelivr.net/gh/google/fonts@master/ofl/gloock/Gloock-Regular.ttf"
+            : "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Ew-.ttf";
 
     // Montserrat (Light 300) is thinner, but the user wants 10% reduction from the previous 4.5 baseline
     // 16% size increase: 4.05 * 1.16 = 4.70, 5.18 * 1.16 = 6.01
     // Mobile reduction: total 60% reduction (multiplier 0.4)
     const mobileScale = isMobile ? 0.4 : 1.0;
-    const fontSize = (isOi ? 4.70 : 6.01) * mobileScale;
+    const fontSize = (isCustom ? 4.70 : isGloock ? 4.70 : 6.01) * mobileScale;
 
-    // Multipliers calibrated for "ultra-tight" look
-    const boxWidth = isOi
-        ? fontSize * 8 * 0.76   // Ultra-tight for Oi (reduced from 0.82)
-        : fontSize * 8 * 0.53;  // Ultra-tight for Montserrat (reduced from 0.58)
+    // Multipliers calibrated for "ultra-tight" look with individualized padding
+    // Custom calibration: Sprat-RegularBold needs a bit more width to avoid cutting off
+    const boxWidth = isCustom
+        ? fontSize * 8 * 0.64   // Sprat: 0.67 -> 0.64로 하향 (텍스트 너비에 더 밀착)
+        : isGloock
+            ? fontSize * 8 * 0.52   // Gloock: 0.49 -> 0.52로 상향
+            : fontSize * 8 * 0.47;  // Montserrat: 0.44 -> 0.47로 상향
 
-    const boxHeight = isOi ? fontSize * 1.0 : fontSize * 0.95;
-    const boxDepth = isOi ? fontSize * 1.0 : fontSize * 0.95;
+    // 위아래 여백 보정 (너무 타이트하지 않게 0.90 -> 0.95~1.0)
+    const boxHeight = isCustom ? fontSize * 1.05 : isGloock ? fontSize * 1.0 : fontSize * 0.95;
+    const boxDepth = isCustom ? fontSize * 1.05 : isGloock ? fontSize * 1.0 : fontSize * 0.95;
 
     return (
         <group ref={groupRef} rotation={[initialRotation.x, initialRotation.y, initialRotation.z]}>
@@ -197,22 +206,22 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
             </mesh>
 
             {/* Front Face - Oi Font (High Res) */}
-            <Text position={[0, 0, boxDepth / 2 + 0.01]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={secondaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.02} sdfGlyphSize={128}>
+            <Text position={[0, 0, boxDepth / 2 + 0.01]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={secondaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.05} sdfGlyphSize={128}>
                 {timeString}
             </Text>
 
             {/* Back Face */}
-            <Text position={[0, 0, -(boxDepth / 2 + 0.01)]} rotation={[0, Math.PI, 0]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={secondaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.02} sdfGlyphSize={128}>
+            <Text position={[0, 0, -(boxDepth / 2 + 0.01)]} rotation={[0, Math.PI, 0]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={secondaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.05} sdfGlyphSize={128}>
                 {timeString}
             </Text>
 
             {/* Top Face */}
-            <Text position={[0, boxHeight / 2 + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={primaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.02} sdfGlyphSize={128}>
+            <Text position={[0, boxHeight / 2 + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={primaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.05} sdfGlyphSize={128}>
                 {timeString}
             </Text>
 
             {/* Bottom Face */}
-            <Text position={[0, -(boxHeight / 2 + 0.01), 0]} rotation={[Math.PI / 2, 0, 0]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={primaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.02} sdfGlyphSize={128}>
+            <Text position={[0, -(boxHeight / 2 + 0.01), 0]} rotation={[Math.PI / 2, 0, 0]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={primaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.05} sdfGlyphSize={128}>
                 {timeString}
             </Text>
         </group>

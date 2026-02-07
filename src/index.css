@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bevan:ital@0;1&family=Gloock&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Oi&display=swap');
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -42,8 +42,9 @@ body {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  border-radius: 50%;
+  border-radius: 4px;
   opacity: 0.6;
+  font-size: 11px;
 }
 
 .minimal-toggle:hover {
@@ -51,30 +52,23 @@ body {
   background: rgba(128, 128, 128, 0.1);
 }
 
+.dark .minimal-toggle:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 .font-icon {
-  font-family: 'Roboto', sans-serif;
-  font-size: 14px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
   font-weight: 700;
-  width: 20px;
-  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
 }
 
-.sound-container {
-  display: flex;
-  gap: 5px;
-  background: rgba(128, 128, 128, 0.05);
-  padding: 4px;
-  border-radius: 8px;
-  margin-right: 10px;
-}
+/* Sound container background removed as it is now a single button */
 
-.minimal-toggle.active {
-  background: rgba(128, 128, 128, 0.2);
-  opacity: 1;
-}
+/* Active state styling removed as per user request */
 
 .spin-button {
   position: absolute;
