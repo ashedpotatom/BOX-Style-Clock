@@ -158,9 +158,10 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
         : "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Ew-.ttf";
 
     // Montserrat (Light 300) is thinner, but the user wants 10% reduction from the previous 4.5 baseline
-    // Mobile reduction: additional 20% (multiplier 0.8)
-    const mobileScale = isMobile ? 0.8 : 1.0;
-    const fontSize = (isOi ? 4.05 : 5.18) * mobileScale;
+    // 16% size increase: 4.05 * 1.16 = 4.70, 5.18 * 1.16 = 6.01
+    // Mobile reduction: total 60% reduction (multiplier 0.4)
+    const mobileScale = isMobile ? 0.4 : 1.0;
+    const fontSize = (isOi ? 4.70 : 6.01) * mobileScale;
 
     // Multipliers calibrated for "ultra-tight" look
     const boxWidth = isOi
