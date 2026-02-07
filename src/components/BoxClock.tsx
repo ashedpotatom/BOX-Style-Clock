@@ -13,6 +13,18 @@ function easeOutExpo(x: number): number {
     return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
 }
 
+function easeOutBack(x: number): number {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+}
+
+function easeOutQuint(x: number): number {
+    return 1 - Math.pow(1 - x, 5);
+}
+
+type EasingMode = 'cubic' | 'expo' | 'back' | 'quint';
+
 interface BoxClockProps {
     isDarkMode: boolean;
     spinTrigger: number;
@@ -53,10 +65,10 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     const [starts, setStarts] = useState(initialRotation);
     const [animStartTime, setAnimStartTime] = useState(0);
     const [animDuration, setAnimDuration] = useState(800);
-    const [useExpoEasing, setUseExpoEasing] = useState(false);
+    const [easingMode, setEasingMode] = useState<EasingMode>('cubic');
 
     // Helper function for Align (Reset to Front)
-    const triggerAlign = () => {
+    const triggerAlign = (isManual = false) => {
         if (groupRef.current) {
             setStarts({
                 x: groupRef.current.rotation.x,
@@ -65,30 +77,33 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
             });
         }
         setAnimStartTime(Date.now());
-        setAnimDuration(2500); // Smooth 2.5s duration
 
-        // Calculate nearest 2pi and add a full 360 spin for visual flair
-        const normalize = (val: number) => {
+        // Manual SPIN: Faster, stronger kick
+        // Auto ALIGN (00s): Smoother, longer
+        setAnimDuration(isManual ? 1500 : 2500);
+
+        // Calculate nearest 2pi and add turns
+        const normalize = (val: number, turns: number) => {
             const twoPi = Math.PI * 2;
             const nearest = Math.round(val / twoPi) * twoPi;
-            return nearest + twoPi; // Add one full turn
+            return nearest + (twoPi * turns);
         };
 
         const newBase = {
-            x: normalize(groupRef.current?.rotation.x || 0),
-            y: normalize(groupRef.current?.rotation.y || 0),
+            x: normalize(groupRef.current?.rotation.x || 0, isManual ? 2 : 1), // manual back to 2 full spins for "stronger" feel
+            y: normalize(groupRef.current?.rotation.y || 0, isManual ? 2 : 1),
             z: 0
         };
 
         setBaseRotation(newBase);
         setTargets(newBase);
-        setUseExpoEasing(true);
+        setEasingMode(isManual ? 'expo' : 'expo'); // Use expo for both but duration makes the difference
     };
 
     // Handle manual align trigger from parent
     useEffect(() => {
         if (spinTrigger > 0) {
-            triggerAlign();
+            triggerAlign(true); // isManual = true
         }
     }, [spinTrigger]);
 
@@ -135,7 +150,7 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
                 z: clamp(prev.z + (randomDelta() * 0.3), baseRotation.z, Math.PI / 8)
             }));
 
-            setUseExpoEasing(false); // Use normal cubic for seconds
+            setEasingMode('cubic'); // Use normal cubic for seconds
         }
     }, [timeString, time]);
 
@@ -146,11 +161,13 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
             let progress = Math.min(elapsed / animDuration, 1);
 
             let easedProgress = 0;
-            if (useExpoEasing) {
-                // Dramatic snap for minute rotation
+            if (easingMode === 'quint') {
+                easedProgress = easeOutQuint(progress);
+            } else if (easingMode === 'back') {
+                easedProgress = easeOutBack(progress);
+            } else if (easingMode === 'expo') {
                 easedProgress = easeOutExpo(progress);
             } else {
-                // All other animations use Ease Out Cubic
                 easedProgress = easeOutCubic(progress);
             }
 
@@ -182,10 +199,10 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     // Multipliers calibrated for "ultra-tight" look with individualized padding
     // Custom calibration: Sprat-RegularBold needs a bit more width to avoid cutting off
     const boxWidth = isCustom
-        ? fontSize * 8 * 0.64   // Sprat: 0.67 -> 0.64로 하향 (텍스트 너비에 더 밀착)
+        ? fontSize * 8 * 0.6    // Sprat: 0.64 -> 0.6으로 하향 (여백 최소화)
         : isGloock
             ? fontSize * 8 * 0.52   // Gloock: 0.49 -> 0.52로 상향
-            : fontSize * 8 * 0.47;  // Montserrat: 0.44 -> 0.47로 상향
+            : fontSize * 8 * 0.68;  // Montserrat: 0.78 -> 0.68로 정밀 조정 (최적의 여백 확보)
 
     // 위아래 여백 보정 (너무 타이트하지 않게 0.90 -> 0.95~1.0)
     const boxHeight = isCustom ? fontSize * 1.05 : isGloock ? fontSize * 1.0 : fontSize * 0.95;

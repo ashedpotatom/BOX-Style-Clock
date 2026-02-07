@@ -114,7 +114,11 @@ function App() {
           />
         </Suspense>
 
-        <OrbitControls enableZoom={false} />
+        <OrbitControls
+          enableZoom={true}
+          minDistance={10}
+          maxDistance={40}
+        />
       </Canvas>
     </div>
   );
