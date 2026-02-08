@@ -48,7 +48,8 @@ function App() {
           className="minimal-toggle font-icon"
           style={{
             padding: '4px 10px',
-            width: 'auto',
+            width: '85px',
+            textAlign: 'left',
             color: isDarkMode ? '#ffffff' : '#000000'
           }}
         >
@@ -64,11 +65,12 @@ function App() {
           className="minimal-toggle font-icon"
           style={{
             padding: '4px 10px',
-            width: 'auto',
+            width: '85px',
+            textAlign: 'left',
             color: isDarkMode ? '#ffffff' : '#000000'
           }}
         >
-          Font: {fontMode === 'gloock' ? 'Gloock' : fontMode === 'montserrat' ? 'Mt' : 'Sprat'}
+          Font: {fontMode === 'gloock' ? 'Gl' : fontMode === 'montserrat' ? 'Mt' : 'Sp'}
         </button>
 
         <button
@@ -76,7 +78,8 @@ function App() {
           className="minimal-toggle font-icon"
           style={{
             padding: '4px 10px',
-            width: 'auto',
+            width: '85px',
+            textAlign: 'left',
             color: isDarkMode ? '#ffffff' : '#000000'
           }}
         >

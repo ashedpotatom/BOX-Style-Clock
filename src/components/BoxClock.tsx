@@ -44,16 +44,6 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     };
     const timeString = formatTime(time);
 
-    // Sound playback every second, except at 00 seconds
-    useEffect(() => {
-        const seconds = time.getSeconds();
-        if (soundUrl && seconds !== 0) {
-            const audio = new Audio(soundUrl);
-            audio.volume = soundVolume;
-            audio.play().catch(e => console.log("Audio playback failed:", e));
-        }
-    }, [timeString, soundUrl]);
-
     const initialRotation = {
         x: -Math.PI / 8,
         y: Math.PI / 4,
@@ -66,6 +56,20 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     const [animStartTime, setAnimStartTime] = useState(0);
     const [animDuration, setAnimDuration] = useState(800);
     const [easingMode, setEasingMode] = useState<EasingMode>('cubic');
+
+    // Sound playback every second, except at 00 seconds and during spin animations
+    useEffect(() => {
+        const seconds = time.getSeconds();
+        const now = Date.now();
+        const isAnimating = (now - animStartTime) < animDuration;
+
+        // SPIN 버튼 클릭이나 정렬 애니메이션 중에는 사운드 재생 스킵
+        if (soundUrl && seconds !== 0 && !isAnimating) {
+            const audio = new Audio(soundUrl);
+            audio.volume = soundVolume;
+            audio.play().catch(e => console.log("Audio playback failed:", e));
+        }
+    }, [timeString, soundUrl, animStartTime, animDuration]);
 
     // Helper function for Align (Reset to Front)
     const triggerAlign = (isManual = false) => {
@@ -97,7 +101,21 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
 
         setBaseRotation(newBase);
         setTargets(newBase);
-        setEasingMode(isManual ? 'expo' : 'expo'); // Use expo for both but duration makes the difference
+        setEasingMode(isManual ? 'expo' : 'expo');
+
+        // SPIN 버튼 클릭 시 회전수에 맞춰 효과음 재생 (OFF 상태에서도 강제 재생)
+        if (isManual) {
+            const playSpin = () => {
+                const spinAudio = new Audio('/assets/sounds/spin.mp3');
+                spinAudio.volume = 0.5; // 고정 볼륨 또는 soundVolume 기반
+                spinAudio.play().catch(e => console.log("Spin sound playback failed:", e));
+            };
+
+            // 수동 스핀은 2바퀴를 도는데 Expo 이징 특성상 초반이 매우 빠릅니다.
+            // 첫 소리는 즉시, 두 번째 소리는 회전 속도에 맞춰 조금 더 일찍 재생합니다.
+            playSpin();
+            setTimeout(playSpin, 250); // 0.4s -> 0.25s로 단축하여 빠른 회전 타이밍에 동기화
+        }
     };
 
     // Handle manual align trigger from parent
@@ -199,10 +217,10 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     // Multipliers calibrated for "ultra-tight" look with individualized padding
     // Custom calibration: Sprat-RegularBold needs a bit more width to avoid cutting off
     const boxWidth = isCustom
-        ? fontSize * 8 * 0.6    // Sprat: 0.64 -> 0.6으로 하향 (여백 최소화)
+        ? fontSize * 8 * 0.5    // Sprat: 0.60 -> 0.50으로 축소
         : isGloock
-            ? fontSize * 8 * 0.52   // Gloock: 0.49 -> 0.52로 상향
-            : fontSize * 8 * 0.68;  // Montserrat: 0.78 -> 0.68로 정밀 조정 (최적의 여백 확보)
+            ? fontSize * 8 * 0.45   // Gloock: 0.52 -> 0.45로 축소
+            : fontSize * 8 * 0.45;  // Montserrat: 0.45 유지
 
     // 위아래 여백 보정 (너무 타이트하지 않게 0.90 -> 0.95~1.0)
     const boxHeight = isCustom ? fontSize * 1.05 : isGloock ? fontSize * 1.0 : fontSize * 0.95;
