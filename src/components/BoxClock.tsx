@@ -34,6 +34,11 @@ interface BoxClockProps {
     soundVolume?: number;
 }
 
+// Pre-create audio instances to reduce mobile latency
+const spinAudio1 = typeof Audio !== 'undefined' ? new Audio('/assets/sounds/spin.mp3') : null;
+const spinAudio2 = typeof Audio !== 'undefined' ? new Audio('/assets/sounds/spin.mp3') : null;
+const tickAudio = typeof Audio !== 'undefined' ? new Audio() : null;
+
 const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, isMobile, soundUrl, soundVolume = 0.4 }) => {
     const time = useTime();
     const groupRef = useRef<Group>(null);
@@ -56,23 +61,28 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
     const [animStartTime, setAnimStartTime] = useState(0);
     const [animDuration, setAnimDuration] = useState(800);
     const [easingMode, setEasingMode] = useState<EasingMode>('cubic');
+    const [isManualSpin, setIsManualSpin] = useState(false);
 
-    // Sound playback every second, except at 00 seconds and during spin animations
+    // Sound playback every second, except at 00 seconds and during MANUAL spin animations
     useEffect(() => {
         const seconds = time.getSeconds();
         const now = Date.now();
         const isAnimating = (now - animStartTime) < animDuration;
 
-        // SPIN 버튼 클릭이나 정렬 애니메이션 중에는 사운드 재생 스킵
-        if (soundUrl && seconds !== 0 && !isAnimating) {
-            const audio = new Audio(soundUrl);
-            audio.volume = soundVolume;
-            audio.play().catch(e => console.log("Audio playback failed:", e));
+        // 00초 자동 정렬 중에는 01초 소리가 나야 하므로, 오직 수동 스핀 중에만 사운드 재생을 스킵합니다.
+        const shouldMute = isManualSpin && isAnimating;
+
+        if (soundUrl && seconds !== 0 && !shouldMute && tickAudio) {
+            tickAudio.src = soundUrl;
+            tickAudio.volume = soundVolume;
+            tickAudio.currentTime = 0;
+            tickAudio.play().catch(e => console.log("Audio playback failed:", e));
         }
-    }, [timeString, soundUrl, animStartTime, animDuration]);
+    }, [timeString, soundUrl, animStartTime, animDuration, isManualSpin, soundVolume]);
 
     // Helper function for Align (Reset to Front)
     const triggerAlign = (isManual = false) => {
+        setIsManualSpin(isManual);
         if (groupRef.current) {
             setStarts({
                 x: groupRef.current.rotation.x,
@@ -94,7 +104,7 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
         };
 
         const newBase = {
-            x: normalize(groupRef.current?.rotation.x || 0, isManual ? 2 : 1), // manual back to 2 full spins for "stronger" feel
+            x: normalize(groupRef.current?.rotation.x || 0, isManual ? 2 : 1),
             y: normalize(groupRef.current?.rotation.y || 0, isManual ? 2 : 1),
             z: 0
         };
@@ -104,17 +114,18 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
         setEasingMode(isManual ? 'expo' : 'expo');
 
         // SPIN 버튼 클릭 시 회전수에 맞춰 효과음 재생 (OFF 상태에서도 강제 재생)
-        if (isManual) {
-            const playSpin = () => {
-                const spinAudio = new Audio('/assets/sounds/spin.mp3');
-                spinAudio.volume = 0.5; // 고정 볼륨 또는 soundVolume 기반
-                spinAudio.play().catch(e => console.log("Spin sound playback failed:", e));
-            };
+        if (isManual && spinAudio1 && spinAudio2) {
+            spinAudio1.volume = 0.5;
+            spinAudio2.volume = 0.5;
 
-            // 수동 스핀은 2바퀴를 도는데 Expo 이징 특성상 초반이 매우 빠릅니다.
-            // 첫 소리는 즉시, 두 번째 소리는 회전 속도에 맞춰 조금 더 일찍 재생합니다.
-            playSpin();
-            setTimeout(playSpin, 250); // 0.4s -> 0.25s로 단축하여 빠른 회전 타이밍에 동기화
+            // 시차를 두고 재생하여 회전감 강화 (모바일을 위해 더 직관적인 핸들링)
+            spinAudio1.currentTime = 0;
+            spinAudio1.play().catch(e => console.log("Spin sound 1 failed:", e));
+
+            setTimeout(() => {
+                spinAudio2.currentTime = 0;
+                spinAudio2.play().catch(e => console.log("Spin sound 2 failed:", e));
+            }, 250);
         }
     };
 
@@ -208,14 +219,10 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
             ? "https://cdn.jsdelivr.net/gh/google/fonts@master/ofl/gloock/Gloock-Regular.ttf"
             : "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Ew-.ttf";
 
-    // Montserrat (Light 300) is thinner, but the user wants 10% reduction from the previous 4.5 baseline
-    // 16% size increase: 4.05 * 1.16 = 4.70, 5.18 * 1.16 = 6.01
-    // Mobile reduction: total 60% reduction (multiplier 0.4)
     const mobileScale = isMobile ? 0.4 : 1.0;
     const fontSize = (isCustom ? 4.70 : isGloock ? 4.70 : 6.01) * mobileScale;
 
     // Multipliers calibrated for "ultra-tight" look with individualized padding
-    // Custom calibration: Sprat-RegularBold needs a bit more width to avoid cutting off
     const boxWidth = isCustom
         ? fontSize * 8 * 0.5    // Sprat: 0.60 -> 0.50으로 축소
         : isGloock
@@ -240,7 +247,7 @@ const BoxClock: React.FC<BoxClockProps> = ({ isDarkMode, spinTrigger, fontMode, 
                 <meshBasicMaterial attach="material-5" color={primaryColor} toneMapped={false} />
             </mesh>
 
-            {/* Front Face - Oi Font (High Res) */}
+            {/* Front Face */}
             <Text position={[0, 0, boxDepth / 2 + 0.01]} fontSize={fontSize} font={fontUrl} material-toneMapped={false} color={secondaryColor} anchorX="center" anchorY="middle" letterSpacing={-0.05} sdfGlyphSize={128}>
                 {timeString}
             </Text>
